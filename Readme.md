@@ -1,5 +1,6 @@
-### What's ths? It's for fluid simulation speed up, including the list featuers:
+### What's this? It's for speed up of possion equation solver , especially in fluid simulation, including the list featuers:
 
+- Easy to use
 - Convert Jacobi iterations to convolution kernel
 - SVD for kernel decomposition
 - Support 2D and 3D
