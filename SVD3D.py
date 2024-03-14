@@ -2,55 +2,60 @@ import numpy as np
 import tensorly as tl
 from tensorly.decomposition import parafac
 
-IterationCount = 3
+import common
+
 CacheDict = {}
 
-def DivergenceIter3D(I, J, K, Iter):
+def ConstructKernel3D(I, J, K, Iter, KernelParas):
     CachedValue = CacheDict.get((I, J, K, Iter))
     if CachedValue is not None:
         return CachedValue
-    KernelSize = 2 * IterationCount - 1
-    Kernel = np.zeros((KernelSize, KernelSize, KernelSize), dtype="float64")
+
+    Kernel = np.zeros((KernelParas.KernelSize, KernelParas.KernelSize, KernelParas.KernelSize), dtype="float64")
     if Iter == 0:
         return Kernel
     else:
-        XIMinus1JKMinus1 = DivergenceIter3D(I - 1, J, K , Iter - 1)
-        XIPlus1JKMinus1 = DivergenceIter3D(I + 1, J, K, Iter - 1)
-        XIJMinus1KMinus1 = DivergenceIter3D(I, J - 1, K, Iter - 1)
-        XIJPlus1KMinus1 = DivergenceIter3D(I, J + 1, K, Iter - 1)
-
-        XIMinus1JKPlus1 = DivergenceIter3D(I, J, K - 1, Iter - 1)
-        XIPlus1JKPlus1 = DivergenceIter3D(I, J, K + 1, Iter - 1)
+        X_IMinus1_J_KMinus1 = ConstructKernel3D(I - 1, J, K , Iter - 1, KernelParas)
+        X_IPlus1_J_KMinus1 = ConstructKernel3D(I + 1, J, K, Iter - 1, KernelParas)
+        X_I_JMinus1_KMinus1 = ConstructKernel3D(I, J - 1, K, Iter - 1, KernelParas)
+        X_I_JPlus1_KMinus1 = ConstructKernel3D(I, J + 1, K, Iter - 1, KernelParas)
+        X_IMinus1_J_KPlus1 = ConstructKernel3D(I, J, K - 1, Iter - 1, KernelParas)
+        X_IPlus1_J_KPlus1 = ConstructKernel3D(I, J, K + 1, Iter - 1, KernelParas)
         Kernel[I][J][K] = 1
 
-        OneDivSix = 1.0 / 6.0;
-        Ret = XIMinus1JKMinus1 * OneDivSix + XIPlus1JKMinus1 * OneDivSix + XIJMinus1KMinus1 * OneDivSix + XIJPlus1KMinus1 * OneDivSix  + XIMinus1JKPlus1 * OneDivSix + XIPlus1JKPlus1 * OneDivSix - Kernel * OneDivSix
+        Ret = (X_IMinus1_J_KMinus1 + X_IPlus1_J_KMinus1 + X_I_JMinus1_KMinus1 + X_I_JPlus1_KMinus1 
+                + X_IMinus1_J_KPlus1 + X_IPlus1_J_KPlus1 + KernelParas.alpha * Kernel) / KernelParas.belta
         CacheDict[(I, J, K, Iter)] = Ret
         return Ret
 		
-def DivergenceKenel(IterationCount):
-    KernelSize = 2 * IterationCount - 1
+def JacobiKernel3D(Ite, alpha, belta):
+    KernelSize = 2 * Ite - 1
     CenterIndex = KernelSize // 2
-    Kernel = DivergenceIter3D(CenterIndex, CenterIndex, CenterIndex, IterationCount)
+    KernelParas = common.Paras(KernelSize, alpha, belta)
+    Kernel = ConstructKernel3D(CenterIndex, CenterIndex, CenterIndex, Ite, KernelParas)
     return Kernel
 	
-def Svd(Kernel, RankSize):
+def SVD3D(Kernel, RankSize):
     X = tl.tensor(Kernel)
     CPTensor = parafac(X, rank=RankSize,normalize_factors=True)
     return CPTensor
 
-def ComputeError(Tensor1, Tensor2):
-    difference = Tensor1 - Tensor2
-    error = np.sqrt(np.sum(np.square(difference)))
-    return error
 
 if __name__=="__main__":
 
-    Kernel = DivergenceKenel(IterationCount)
+    IterationCount = 3
+
+    # Pressure
+    #alpha, belta = common.ComputeInverseParas(3)
+
+    # Diffusion
+    alpha, belta = common.ComputeForwardParas(3)
+
+    Kernel = JacobiKernel3D(IterationCount, alpha, belta)
     print("Kernel", Kernel)
 
     rank = 1
-    CPTensor = Svd(Kernel, rank)
+    CPTensor = SVD3D(Kernel, rank)
 
     print("CPTensor.Weights", CPTensor.weights)
 
@@ -61,7 +66,7 @@ if __name__=="__main__":
     # print("recon", recon)
 
     # Compute error
-    error = ComputeError(Kernel, recon)
+    error = common.ComputeError(Kernel, recon)
     print("error",error)
 
     # print factors

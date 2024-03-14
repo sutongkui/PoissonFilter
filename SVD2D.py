@@ -5,15 +5,11 @@
 import numpy as np
 import os
 
+import common
+
 CacheDict = {}
 
-class Paras:
-    def __init__(self, size, alpha, belta):
-        self.KernelSize = size
-        self.alpha = alpha
-        self.belta = belta
-
-def ConstructKernel(I, J, K, KernelParas):
+def ConstructKernel2D(I, J, K, KernelParas):
     CachedValue = CacheDict.get((I, J, K))
     if CachedValue is not None:
         return CachedValue
@@ -22,64 +18,26 @@ def ConstructKernel(I, J, K, KernelParas):
     if K == 0:
         return Kernel
     else:
-        X_IMinus1_J = ConstructKernel(I - 1, J, K - 1, KernelParas)
-        X_IPlus1_J = ConstructKernel(I + 1, J, K - 1, KernelParas)
-        X_I_JMinus1 = ConstructKernel(I, J - 1, K - 1, KernelParas)
-        X_I_JPlus1 = ConstructKernel(I, J + 1, K - 1, KernelParas)
+        X_IMinus1_J = ConstructKernel2D(I - 1, J, K - 1, KernelParas)
+        X_IPlus1_J = ConstructKernel2D(I + 1, J, K - 1, KernelParas)
+        X_I_JMinus1 = ConstructKernel2D(I, J - 1, K - 1, KernelParas)
+        X_I_JPlus1 = ConstructKernel2D(I, J + 1, K - 1, KernelParas)
         Kernel[I][J] = 1
         Ret = (X_IMinus1_J + X_IPlus1_J + X_I_JMinus1 + X_I_JPlus1 + KernelParas.alpha * Kernel) / KernelParas.belta
         CacheDict[(I, J, K)] = Ret
         return Ret
 		
-def JacobiKernel(Ite, alpha, belta):
+def JacobiKernel2D(Ite, alpha, belta):
     KernelSize = 2 * Ite - 1
     CenterIndex = KernelSize // 2
-    KernelParas = Paras(KernelSize, alpha, belta)
-    Kernel = ConstructKernel(CenterIndex, CenterIndex, Ite, KernelParas)
+    KernelParas = common.Paras(KernelSize, alpha, belta)
+    Kernel = ConstructKernel2D(CenterIndex, CenterIndex, Ite, KernelParas)
     return Kernel
 	
-def Svd(Kernel):
+def SVD2D(Kernel):
     U, Sigma, VT = np.linalg.svd(Kernel)
     return  U, Sigma, VT
 
-def ComputeError(matrix1, matrix2):
-    difference = matrix1 - matrix2
-    error = np.sqrt(np.sum(np.square(difference)))
-    return error
-
-# Forward problem, diffusion in fluid simulation
-def ComputeForwardParas():
-
-    viscosity = 10.0
-
-    # 30 frames per second, delta_t = 1.0/30
-    delta_t = 0.033
-
-    # Fix delta_x = 1 m
-    delta_x = 1.0
-    
-    # 2D
-    dimension = 2
-
-    alpha = delta_x**2 / (viscosity * delta_t)
-    belta = 2 * dimension + alpha
-
-    return alpha, belta
-
-
-# Inverse problem, pressure solver in in fluid simulation
-def ComputeInverseParas():
-
-    # Fix delta_x = 1 m
-    delta_x = 1.0
-
-    # 2D
-    dimension = 2
-
-    alpha = - delta_x**2
-    belta = 2.0 * dimension
-
-    return alpha, belta
  
 
 if __name__=="__main__":
@@ -88,14 +46,14 @@ if __name__=="__main__":
     # Adjust this variable to get what you want
     IterationCount = 2
 
-    #alpha, belta = ComputeInverseParas()
-    alpha, belta = ComputeForwardParas()
-    Kernel = JacobiKernel(IterationCount, alpha, belta)
+    #alpha, belta = common.ComputeInverseParas(2)
+    alpha, belta = common.ComputeForwardParas(2)
+    Kernel = JacobiKernel2D(IterationCount, alpha, belta)
 
     print("Original Kernel:",Kernel)
 
     # Decomposition
-    U, Sigma, VT = Svd(Kernel)
+    U, Sigma, VT = SVD2D(Kernel)
 
     # Reconstruction
     Recon = np.zeros((Kernel.shape[0], Kernel.shape[1]))
@@ -107,5 +65,5 @@ if __name__=="__main__":
     print("Recon:",Recon)
 
     # Compute error
-    error = ComputeError(Kernel, Recon)
+    error = common.ComputeError(Kernel, Recon)
     print("error: ", error)
