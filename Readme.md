@@ -1,4 +1,4 @@
-### What's this? It's for speed up of possion equation solver , especially in fluid simulation, including the list featuers:
+### What's this? It's for speed up of poisson equation solver , especially in fluid simulation, including the list featuers:
 
 - Easy to use
 - Convert Jacobi iterations to convolution kernel
@@ -6,4 +6,4 @@
 - Support 2D and 3D
 
 ### Reference
-- [Possion Filter](https://github.com/ubisoft/ubisoft-laforge-Poisson-Filters)
+- [Poisson Filter](https://github.com/ubisoft/ubisoft-laforge-Poisson-Filters)
